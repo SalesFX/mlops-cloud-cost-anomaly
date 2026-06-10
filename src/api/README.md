@@ -134,8 +134,24 @@ Response:
 - All 12 fields are required — missing fields return HTTP 422
 
 **Error responses:**
-- `422 Unprocessable Entity` — invalid or missing field
-- `503 Service Unavailable` — model artefact missing from `models/`
+
+| Code | When | Body |
+|------|------|------|
+| `422 Unprocessable Entity` | Invalid or missing field | FastAPI default validation error |
+| `503 Service Unavailable` | Model artefact missing from `models/` | Standardised `ErrorResponse` |
+
+**Standardised 503 error body:**
+
+```json
+{
+  "error": "model_artifact_unavailable",
+  "message": "Required model artefact file not found.",
+  "details": "models/model_metadata.json"
+}
+```
+
+All three fields (`error`, `message`, `details`) are always present in 503 responses.
+No stack traces are ever returned.
 
 ---
 
@@ -144,12 +160,14 @@ Response:
 ```
 src/api/
 ├── __init__.py
-├── config.py             # Settings from env vars, singleton `settings`
-├── schemas.py            # Pydantic v2 response models
+├── config.py                       # Settings from env vars, singleton `settings`
+├── schemas.py                      # Pydantic v2: HealthResponse, ModelInfoResponse,
+│                                   #   PredictRequest, PredictResponse, ErrorResponse
 ├── services/
 │   ├── __init__.py
-│   └── model_service.py  # load_json, load_metadata, load_feature_schema, load_model
-└── main.py               # FastAPI app, GET /health, GET /model/info
+│   ├── model_service.py            # load_json, load_metadata, load_feature_schema, load_model
+│   └── prediction_service.py       # build_feature_vector, _risk_level, predict
+└── main.py                         # FastAPI app + exception handler + all endpoints
 ```
 
 **Architecture note (ADR-004):** `src/api/` does not import from `src/ml/`.
