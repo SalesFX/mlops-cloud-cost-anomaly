@@ -149,9 +149,84 @@ pytest tests/ -v
 
 ---
 
-## Upcoming (Phase 1.3+)
+## Phase 1.3 — Statistical Baseline Detector
 
-- `baseline.py` — statistical z-score/IQR anomaly detection
+### What it does
+
+`baseline_detector.py` applies five rule-based anomaly detection rules to the feature-enriched dataset, adding four `baseline_*` columns. Serves as the non-ML comparison baseline for Isolation Forest, Decision Tree and XGBoost.
+
+### Running
+
+```bash
+python src/ml/baseline_detector.py \
+    --input  data/cloud_cost_features.csv \
+    --output data/cloud_cost_baseline_predictions.csv
+```
+
+### Rules and thresholds
+
+| Rule | Condition | Reason label |
+|------|-----------|-------------|
+| 1 | `daily_cost > avg_cost_7d * 2.5` | `cost_above_7d_average` |
+| 2 | `daily_cost > avg_cost_30d * 3.0` | `cost_above_30d_average` |
+| 3 | `cost_change_percent >= 150` | `high_cost_change` |
+| 4 | `usage_change_percent >= 200` | `high_usage_change` |
+| 5 | `is_missing_tag == True` | `missing_tag` |
+
+**Priority** (when multiple rules fire, the highest-priority reason wins):
+
+```
+none < missing_tag < high_usage_change < high_cost_change
+     < cost_above_7d_average < cost_above_30d_average
+```
+
+`cost_above_30d_average` has the highest priority because a violation of the long-term baseline is a stronger anomaly signal than a short-term spike.
+
+### Scoring
+
+| reason | baseline_score | baseline_risk_level |
+|--------|---------------|-------------------|
+| `none` | 0.0 | `low` |
+| `missing_tag` | 0.30 | `medium` |
+| `high_usage_change` | 0.50 | `medium` |
+| `high_cost_change` | 0.60 | `high` |
+| `cost_above_7d_average` | 0.75 | `high` |
+| `cost_above_30d_average` | 0.85 | `high` |
+
+### Output columns added
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `baseline_anomaly` | bool | True when any rule fires |
+| `baseline_score` | float [0–1] | Severity score of the primary reason |
+| `baseline_risk_level` | string | `low` / `medium` / `high` |
+| `baseline_reason` | string | Primary rule that triggered the flag |
+
+### Acceptance criteria (Phase 1.3)
+
+- [x] All rows from input preserved in output
+- [x] Four `baseline_*` columns added correctly
+- [x] `baseline_score` in [0.0, 1.0] for all records
+- [x] `baseline_risk_level` is one of `low`, `medium`, `high`
+- [x] `baseline_reason` is one of the six valid values
+- [x] `cost_above_30d_average` beats `cost_above_7d_average` when both fire
+- [x] `cost_above_7d_average` beats `high_cost_change` when both fire
+- [x] `missing_tag` alone yields `medium` risk, not `high`
+- [x] NaN in `cost_change_percent` / `usage_change_percent` does not trigger rules
+- [x] `is_anomaly` and `anomaly_type` preserved unchanged
+- [x] No ML model trained
+
+### Running tests
+
+```bash
+pytest tests/ml/test_baseline_detector.py -v
+```
+
+---
+
+## Upcoming (Phase 1.4+)
+
+- `isolation_forest.py` — unsupervised anomaly detection
 - `isolation_forest.py` — unsupervised anomaly detection
 - `decision_tree.py` — explainable supervised classifier
 - `xgboost_model.py` — high-performance supervised classifier
