@@ -23,10 +23,16 @@ Grouping note (architecture):
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+try:
+    from src.ml.data_loading import load_billing_csv  # pytest / installed package
+except ImportError:
+    from data_loading import load_billing_csv  # python src/ml/feature_engineering.py
 
 # ---------------------------------------------------------------------------
 # Schema contracts
@@ -67,15 +73,9 @@ FEATURE_COLUMNS = [
 # ---------------------------------------------------------------------------
 
 
-def load_dataset(path: str) -> pd.DataFrame:
-    """Load raw billing CSV.
-
-    keep_default_na=False preserves empty tag strings as "" instead of NaN.
-    is_anomaly is coerced back to bool (CSV stores "True"/"False" strings).
-    """
-    df = pd.read_csv(path, keep_default_na=False, parse_dates=["date"])
-    df["is_anomaly"] = df["is_anomaly"].astype(str).str.lower() == "true"
-    return df
+def load_dataset(path: str | os.PathLike) -> pd.DataFrame:
+    """Load raw billing CSV. Delegates to data_loading.load_billing_csv."""
+    return load_billing_csv(path)
 
 
 def save_features(df: pd.DataFrame, output_path: str) -> None:

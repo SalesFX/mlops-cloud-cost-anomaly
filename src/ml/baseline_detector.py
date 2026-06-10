@@ -20,9 +20,15 @@ term spike that may still be within the historical norm.
 """
 
 import argparse
+import os
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from src.ml.data_loading import load_billing_csv  # pytest / installed package
+except ImportError:
+    from data_loading import load_billing_csv  # python src/ml/baseline_detector.py
 
 # ---------------------------------------------------------------------------
 # Schema contracts
@@ -132,20 +138,9 @@ def detect(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def load_features(path: str) -> pd.DataFrame:
-    """Load feature-enriched billing CSV.
-
-    Reads with standard NaN handling so numeric columns (cost_change_percent,
-    usage_change_percent, etc.) retain float NaN for first-day records.
-    Tag columns are then patched: CSV round-trip converts empty strings to NaN,
-    so we restore them to "" to preserve the is_missing_tag semantics.
-    """
-    df = pd.read_csv(path, parse_dates=["date"])
-    for col in ("tag_project", "tag_owner"):
-        if col in df.columns:
-            df[col] = df[col].fillna("")
-    df["is_anomaly"] = df["is_anomaly"].astype(str).str.lower() == "true"
-    return df
+def load_features(path: str | os.PathLike) -> pd.DataFrame:
+    """Load feature-enriched billing CSV. Delegates to data_loading.load_billing_csv."""
+    return load_billing_csv(path)
 
 
 def save_predictions(df: pd.DataFrame, output_path: str) -> None:
