@@ -37,6 +37,7 @@ uvicorn src.api.main:app --reload
 |-----|-------------|
 | `http://localhost:8000/health` | Liveness check |
 | `http://localhost:8000/model/info` | Model metadata and feature schema |
+| `http://localhost:8000/predict` | Anomaly prediction |
 | `http://localhost:8000/docs` | Swagger UI |
 | `http://localhost:8000/redoc` | ReDoc |
 
@@ -88,6 +89,54 @@ export FEATURE_SCHEMA_PATH=models/feature_schema.json
 export API_VERSION=0.1.0
 ```
 
+### POST /predict
+
+Accepts the 12 pre-engineered model features. Features must be computed before calling
+(run `feature_engineering.py` first, or supply pre-computed values).
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "daily_cost": 320.50,
+    "usage_quantity": 9000.0,
+    "previous_day_cost": 82.10,
+    "previous_day_usage": 2100.0,
+    "avg_cost_7d": 85.20,
+    "avg_cost_30d": 78.40,
+    "cost_change_percent": 290.30,
+    "usage_change_percent": 210.50,
+    "cost_to_usage_ratio": 0.035,
+    "is_missing_tag": false,
+    "day_of_week": 2,
+    "is_weekend": false
+  }'
+```
+
+Response:
+
+```json
+{
+  "anomaly": true,
+  "score": 0.9995,
+  "risk_level": "high",
+  "model_name": "best_model",
+  "model_version": "1.0.0",
+  "algorithm": "XGBoost"
+}
+```
+
+**Validations:**
+- `daily_cost`, `usage_quantity`, `avg_cost_7d`, `avg_cost_30d`, `previous_day_cost`,
+  `previous_day_usage`, `cost_to_usage_ratio` must be `≥ 0`
+- `cost_change_percent`, `usage_change_percent` can be negative, zero, or positive
+- `day_of_week` must be `0–6` (0=Monday, 6=Sunday)
+- All 12 fields are required — missing fields return HTTP 422
+
+**Error responses:**
+- `422 Unprocessable Entity` — invalid or missing field
+- `503 Service Unavailable` — model artefact missing from `models/`
+
 ---
 
 ## Module structure
@@ -116,8 +165,8 @@ pytest tests/api/ -v
 
 ---
 
-## Upcoming (Phase 2.2+)
+## Upcoming (Phase 3+)
 
-- `POST /predict` — receive a billing record, return anomaly prediction
-- Pydantic v2 input validation for prediction request
-- `GET /model/info` extended with serving contract details
+- Prometheus metrics endpoint (`/metrics`)
+- Structured JSON logs via `structlog`
+- Grafana dashboard
