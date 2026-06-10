@@ -39,28 +39,14 @@ from sklearn.ensemble import IsolationForest
 
 try:
     from src.ml.data_loading import load_billing_csv  # pytest / installed package
+    from src.ml.preprocessing import MODEL_FEATURES, build_feature_matrix  # noqa: F401
 except ImportError:
     from data_loading import load_billing_csv  # python src/ml/isolation_forest_detector.py
+    from preprocessing import MODEL_FEATURES, build_feature_matrix  # noqa: F401
 
-# ---------------------------------------------------------------------------
-# Schema contracts
-# ---------------------------------------------------------------------------
-
-# is_anomaly and anomaly_type are NEVER included here.
-MODEL_FEATURES: list[str] = [
-    "daily_cost",
-    "usage_quantity",
-    "previous_day_cost",
-    "previous_day_usage",
-    "avg_cost_7d",
-    "avg_cost_30d",
-    "cost_change_percent",
-    "usage_change_percent",
-    "cost_to_usage_ratio",
-    "is_missing_tag",   # FinOps governance signal — see module docstring
-    "day_of_week",
-    "is_weekend",
-]
+# Re-exported for backward compatibility with existing test imports.
+# Tests that do `from src.ml.isolation_forest_detector import MODEL_FEATURES`
+# will continue to work because the names are in this module's namespace.
 
 IFOREST_OUTPUT_COLUMNS: list[str] = [
     "iforest_anomaly",
@@ -69,26 +55,17 @@ IFOREST_OUTPUT_COLUMNS: list[str] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Feature preparation
+# Feature preparation — delegated to preprocessing.py
 # ---------------------------------------------------------------------------
-
-
-def build_feature_matrix(df: pd.DataFrame) -> np.ndarray:
-    """Extract and preprocess MODEL_FEATURES for IsolationForest.
-
-    1. Selects MODEL_FEATURES columns — excludes is_anomaly and anomaly_type.
-    2. Casts boolean columns (is_missing_tag, is_weekend) to int.
-    3. Fills NaN with per-column median — covers first-day records that have
-       no rolling history (previous_day_cost, cost_change_percent, etc.).
-
-    Returns float64 ndarray of shape (n_records, len(MODEL_FEATURES)).
-    """
-    X = df[MODEL_FEATURES].copy()
-    for col in ("is_missing_tag", "is_weekend"):
-        if col in X.columns:
-            X[col] = X[col].astype(int)
-    X = X.fillna(X.median())
-    return X.to_numpy(dtype=float)
+#
+# build_feature_matrix is imported above and re-exported.
+# The docstring below is preserved for context.
+#
+# build_feature_matrix(df):
+#   1. Selects MODEL_FEATURES — excludes is_anomaly and anomaly_type.
+#   2. Casts boolean columns (is_missing_tag, is_weekend) to int.
+#   3. Fills NaN with per-column median — covers first-day records that have
+#      no rolling history (previous_day_cost, cost_change_percent, etc.).
 
 
 # ---------------------------------------------------------------------------

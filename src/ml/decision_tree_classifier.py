@@ -40,34 +40,21 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 try:
     from src.ml.data_loading import load_billing_csv  # pytest / installed package
+    from src.ml.preprocessing import MODEL_FEATURES, build_feature_matrix, build_target  # noqa: F401
+    from src.ml.evaluation import evaluate_binary_classifier
 except ImportError:
     from data_loading import load_billing_csv  # python src/ml/decision_tree_classifier.py
+    from preprocessing import MODEL_FEATURES, build_feature_matrix, build_target  # noqa: F401
+    from evaluation import evaluate_binary_classifier
 
-# ---------------------------------------------------------------------------
-# Schema contracts
-# ---------------------------------------------------------------------------
-
-# is_anomaly and anomaly_type are NEVER included here.
-MODEL_FEATURES: list[str] = [
-    "daily_cost",
-    "usage_quantity",
-    "previous_day_cost",
-    "previous_day_usage",
-    "avg_cost_7d",
-    "avg_cost_30d",
-    "cost_change_percent",
-    "usage_change_percent",
-    "cost_to_usage_ratio",
-    "is_missing_tag",
-    "day_of_week",
-    "is_weekend",
-]
+# Re-exported for backward compatibility with existing test imports.
+# Tests that do `from src.ml.decision_tree_classifier import MODEL_FEATURES,
+# build_feature_matrix, build_target, evaluate_test` continue to work.
 
 DT_OUTPUT_COLUMNS: list[str] = [
     "dt_anomaly",
@@ -75,35 +62,8 @@ DT_OUTPUT_COLUMNS: list[str] = [
     "dt_risk_level",
 ]
 
-# ---------------------------------------------------------------------------
-# Feature and target preparation
-# ---------------------------------------------------------------------------
-
-
-def build_feature_matrix(df: pd.DataFrame) -> np.ndarray:
-    """Extract and preprocess MODEL_FEATURES for Decision Tree training/prediction.
-
-    1. Selects MODEL_FEATURES — excludes is_anomaly and anomaly_type.
-    2. Casts boolean columns (is_missing_tag, is_weekend) to int.
-    3. Fills NaN with column median (first-day records lack rolling history).
-
-    Returns float64 ndarray of shape (n_records, len(MODEL_FEATURES)).
-    """
-    X = df[MODEL_FEATURES].copy()
-    for col in ("is_missing_tag", "is_weekend"):
-        if col in X.columns:
-            X[col] = X[col].astype(int)
-    X = X.fillna(X.median())
-    return X.to_numpy(dtype=float)
-
-
-def build_target(df: pd.DataFrame) -> np.ndarray:
-    """Extract is_anomaly as a binary int array (0=normal, 1=anomaly).
-
-    is_anomaly is used only as the supervised training target y.
-    It is never passed to build_feature_matrix.
-    """
-    return df["is_anomaly"].astype(int).to_numpy()
+# Backward-compatible alias — existing tests import evaluate_test from here.
+evaluate_test = evaluate_binary_classifier
 
 
 # ---------------------------------------------------------------------------
@@ -174,62 +134,6 @@ def predict_all(
     df["dt_score"] = scores
     df["dt_risk_level"] = [_risk_level(float(s)) for s in scores]
     return df
-
-
-# ---------------------------------------------------------------------------
-# Evaluation (test set only, decoupled from DataFrame)
-# ---------------------------------------------------------------------------
-
-
-def evaluate_test(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    y_score: np.ndarray,
-) -> dict:
-    """Compute classification metrics from arrays — not tied to any DataFrame.
-
-    Args:
-        y_true:  Ground-truth labels (int or bool).
-        y_pred:  Predicted labels (int or bool).
-        y_score: Predicted probabilities for the anomaly class.
-
-    Metrics are calculated on the test set only. In production (Phase 6),
-    real billing data has no labels and this function is not called.
-    """
-    actual = y_true.astype(bool)
-    predicted = y_pred.astype(bool)
-
-    tp = int((predicted & actual).sum())
-    fp = int((predicted & ~actual).sum())
-    fn = int((~predicted & actual).sum())
-    tn = int((~predicted & ~actual).sum())
-    n = tp + fp + fn + tn
-
-    accuracy = (tp + tn) / n if n > 0 else 0.0
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
-
-    try:
-        roc_auc = float(roc_auc_score(actual.astype(int), y_score))
-    except ValueError:
-        roc_auc = 0.0
-
-    return {
-        "tp": tp,
-        "fp": fp,
-        "fn": fn,
-        "tn": tn,
-        "accuracy": round(accuracy, 4),
-        "precision": round(precision, 4),
-        "recall": round(recall, 4),
-        "f1": round(f1, 4),
-        "roc_auc": round(roc_auc, 4),
-    }
 
 
 # ---------------------------------------------------------------------------
