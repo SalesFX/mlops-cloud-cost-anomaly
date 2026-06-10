@@ -224,12 +224,82 @@ pytest tests/ml/test_baseline_detector.py -v
 
 ---
 
-## Upcoming (Phase 1.4+)
+## Phase 1.4 — Isolation Forest Detector
 
-- `isolation_forest.py` — unsupervised anomaly detection
-- `isolation_forest.py` — unsupervised anomaly detection
-- `decision_tree.py` — explainable supervised classifier
-- `xgboost_model.py` — high-performance supervised classifier
+### What it does
+
+`isolation_forest_detector.py` trains an `IsolationForest` (scikit-learn) on the feature-enriched dataset without using any labels. First real ML model in the pipeline — fully unsupervised.
+
+### Running
+
+```bash
+python src/ml/isolation_forest_detector.py \
+    --input  data/cloud_cost_features.csv \
+    --output data/cloud_cost_iforest_predictions.csv \
+    --contamination 0.05 \
+    --seed 42
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--input` | `data/cloud_cost_features.csv` | Feature-enriched CSV (Phase 1.2 output) |
+| `--output` | `data/cloud_cost_iforest_predictions.csv` | Predictions output |
+| `--contamination` | `0.05` | Expected fraction of anomalies |
+| `--seed` | `42` | Random seed for reproducibility |
+
+### Features used for training
+
+```python
+["daily_cost", "usage_quantity", "previous_day_cost", "previous_day_usage",
+ "avg_cost_7d", "avg_cost_30d", "cost_change_percent", "usage_change_percent",
+ "cost_to_usage_ratio", "is_missing_tag", "day_of_week", "is_weekend"]
+```
+
+`is_anomaly` and `anomaly_type` are **never** used as features — preserved in output for evaluation only.
+
+**Note on `is_missing_tag`:** Included as an explicit FinOps governance signal. Records with empty cost-allocation tags form a distinct cluster in feature space, making `missing_tag` anomalies easier to isolate unsupervised.
+
+### Output columns added
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `iforest_anomaly` | bool | True when IsolationForest flags the record |
+| `iforest_score` | float [0–1] | 0 = normal, 1 = most anomalous |
+| `iforest_risk_level` | string | `low` (`< 0.4`) / `medium` (`0.4–0.7`) / `high` (`≥ 0.7`) |
+
+### Evaluation note
+
+`evaluate()` compares `iforest_anomaly` against `is_anomaly` ground truth. These metrics are a **benchmark for the synthetic scenario only** — not a proxy for production performance. In Phase 6, real data has no labels.
+
+### Model persistence
+
+No model artefact saved (`.pkl` / `.joblib`). Deferred to the model registry phase.
+
+### Acceptance criteria (Phase 1.4)
+
+- [x] Output has same row count as input
+- [x] Three `iforest_*` columns added correctly
+- [x] `iforest_score` in [0.0, 1.0] for all records
+- [x] `is_anomaly` and `anomaly_type` preserved, never used as features
+- [x] No model saved to disk
+- [x] Reproducible with same `--seed`
+- [x] All 35 tests in `tests/ml/test_isolation_forest_detector.py` pass
+
+### Running tests
+
+```bash
+pytest tests/ml/test_isolation_forest_detector.py -v
+```
+
+---
+
+## Upcoming (Phase 1.5+)
+
+- `decision_tree_detector.py` — supervised, explainable classifier
+- `xgboost_detector.py` — supervised, high-performance classifier
+- `evaluator.py` — shared model comparison metrics
+- `predictor.py` — unified `predict()` interface
+- `model_registry.py` — model save/load with `metadata.json`
 - `evaluator.py` — shared model comparison metrics
 - `predictor.py` — unified `predict()` interface
 - `model_registry.py` — model save/load with `metadata.json`
