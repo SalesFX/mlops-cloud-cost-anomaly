@@ -147,6 +147,66 @@ Each specialized agent lives in `.claude/agents/`. Invoke the appropriate agent 
 
 ---
 
+## Engineering Practices
+
+These practices are mandatory for all implementation work from Phase 1 onwards.
+
+### Test-Driven Development
+
+- Write tests before or alongside implementation — never after.
+- A module is not considered complete until its tests pass.
+- Tests must cover: happy path, edge cases, and error/validation cases.
+- Use `pytest`. No `unittest`-style test classes unless there is a clear organisational reason.
+
+### Function and module design
+
+- Keep functions small with a single, clear responsibility.
+- If a function needs a comment to explain what it does, it should be split or renamed.
+- Prefer flat module structures over deep class hierarchies.
+- Apply OOP only when there is a concrete benefit — e.g. a shared interface across multiple implementations (collectors in Phase 6). Never apply it preemptively.
+- Avoid overengineering: three similar functions are better than a premature abstraction.
+
+### Type hints
+
+- Use type hints on all function signatures where the types are non-obvious or where the function is part of a public interface.
+- Do not annotate trivial single-line helpers where the type is self-evident.
+- Prefer built-in types (`list`, `dict`, `str`) over `typing` aliases for Python 3.9+.
+
+### Responsibility separation
+
+The following responsibilities must remain in separate functions or modules — never merged into one:
+
+| Responsibility | Phase 1 location |
+|---------------|-----------------|
+| Data generation | `src/ml/generate_dataset.py` |
+| Anomaly injection | `generate_dataset.py` — `inject_anomalies()` |
+| Feature engineering | `src/ml/feature_engineering.py` |
+| Model training | Per-model files (`baseline.py`, `isolation_forest.py`, etc.) |
+| Model evaluation | `src/ml/evaluator.py` |
+| Model persistence | `src/ml/model_registry.py` |
+| Prediction serving | `src/ml/predictor.py` (Phase 1) / `src/api/` (Phase 2) |
+
+### Code quality
+
+- Code must be readable without comments — well-named identifiers are preferred over inline explanations.
+- Only add a comment when the **why** is non-obvious: a hidden constraint, a statistical choice, a workaround.
+- No `print()` statements in library code — use return values and let the CLI layer handle output.
+- No dead code, commented-out blocks, or unused imports in committed files.
+
+### Documentation
+
+- Every `src/` subdirectory must have a `README.md` documenting: what it does, how to run it, and its acceptance criteria for the current phase.
+- Acceptance criteria must be explicit and checkable — not vague descriptions.
+- Update the relevant `README.md` as part of the same commit that implements the feature.
+
+### Governance compliance
+
+- Every implementation must comply with `CLAUDE.md` phase gates, relevant ADRs, and `docs/project-spec.md`.
+- If an implementation requires deviating from an ADR, update the ADR first — do not implement first and document later.
+- After each sub-phase is implemented, invoke the `reviewer` agent to assess scope compliance, test quality, code quality, and adherence to architectural decisions before marking the phase complete.
+
+---
+
 ## Implementation Rules
 
 - Every implementation must be small, focused, and independently reviewable.
