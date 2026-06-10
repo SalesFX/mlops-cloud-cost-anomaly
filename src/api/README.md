@@ -175,10 +175,69 @@ It loads pre-generated artefacts from `models/` via `model_service.py`.
 
 ---
 
+## Running with Docker (Phase 3.1)
+
+### Build
+
+```bash
+docker build -t cloud-cost-anomaly-api:local .
+```
+
+### Run without model artefacts
+
+```bash
+docker run --rm -p 8000:8000 cloud-cost-anomaly-api:local
+```
+
+In this mode:
+- `GET /health` → **200 OK**
+- `GET /model/info` → **503** (model artefacts not mounted)
+- `POST /predict` → **503** (model artefacts not mounted)
+
+### Run with model artefacts (full functionality)
+
+Generate artefacts first if not present:
+
+```bash
+python src/ml/model_registry.py \
+    --input data/cloud_cost_features.csv \
+    --model-output models/best_model.joblib \
+    --metadata-output models/model_metadata.json \
+    --schema-output models/feature_schema.json \
+    --model-version 1.0.0 --seed 42
+```
+
+Then mount `models/` as a read-only volume:
+
+```bash
+# Linux / macOS
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/models:/app/models:ro" \
+  cloud-cost-anomaly-api:local
+
+# Windows PowerShell
+docker run --rm -p 8000:8000 `
+  -v "${PWD}/models:/app/models:ro" `
+  cloud-cost-anomaly-api:local
+```
+
+In this mode all three endpoints return 200.
+
+### Architecture note
+
+`models/` is **never baked into the image**. The image contains only code and
+Python dependencies. Model artefacts are external and mounted at runtime.
+This is the recommended MLOps pattern: the same image can serve different
+model versions without rebuilding.
+
+---
+
 ## Running tests
 
 ```bash
-pytest tests/api/ -v
+pytest tests/api/ -v        # API tests
+pytest tests/infra/ -v      # Dockerfile/dockerignore static checks
+pytest tests/ -v            # all tests
 ```
 
 ---
