@@ -471,11 +471,56 @@ correct unbiased references. This report is an operational consolidated view.
 
 ---
 
-## Upcoming (Phase 1.8+)
+## Phase 1.8 — Model Registry / Best Model Export
 
-- `predictor.py` — unified predict() interface
-- `model_registry.py` — model save/load with metadata.json
-- `predictor.py` — unified `predict()` interface
+### What it does
+
+`model_registry.py` trains the final XGBoost model on the **full dataset** and saves three artefacts:
+
+| Artefact | Path | Purpose |
+|----------|------|---------|
+| Serialised model | `models/best_model.joblib` | Serving via future FastAPI |
+| Provenance metadata | `models/model_metadata.json` | Hyperparameters, phase references |
+| Feature contract | `models/feature_schema.json` | Input schema for the serving API |
+
+### Running
+
+```bash
+python src/ml/model_registry.py \
+    --input           data/cloud_cost_features.csv \
+    --model-output    models/best_model.joblib \
+    --metadata-output models/model_metadata.json \
+    --schema-output   models/feature_schema.json \
+    --model-version   1.0.0 \
+    --seed            42
+```
+
+### Training rationale
+
+The model is trained on the **complete dataset** because the objective is a serving artefact, not a held-out evaluation. Official evaluation metrics come from:
+- **Phase 1.5** — Decision Tree, 80/20 test-split metrics
+- **Phase 1.6** — XGBoost, 80/20 test-split metrics
+- **Phase 1.7** — Consolidated comparison (`evaluation_scope=full_dataset_outputs`)
+
+### Artefacts (gitignored — generated locally)
+
+`models/` is in `.gitignore`. Artefacts are not committed to the repository.
+
+### Acceptance criteria (Phase 1.8)
+
+- [x] `models/best_model.joblib` generated (110 KB, XGBClassifier)
+- [x] `models/model_metadata.json` with all required fields and phase references
+- [x] `models/feature_schema.json` with 12 features, boolean/numeric split, serving note
+- [x] `is_anomaly` and `anomaly_type` never used as features
+- [x] `load_model` round-trip produces identical predictions
+- [x] All 298 tests pass
+
+---
+
+## Upcoming (Phase 2+)
+
+- `predictor.py` — unified `predict()` interface for the serving API
+- Phase 2: FastAPI application with `/predict`, `/health`, `/model/info` endpoints
 - `model_registry.py` — model save/load with `metadata.json`
 - `evaluator.py` — shared model comparison metrics
 - `predictor.py` — unified `predict()` interface
