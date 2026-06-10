@@ -364,11 +364,69 @@ pytest tests/ml/test_decision_tree_classifier.py -v
 
 ---
 
-## Upcoming (Phase 1.6+)
+## Phase 1.6 — XGBoost Classifier + Shared Utilities
 
-- `xgboost_detector.py` — supervised, high-performance classifier
-- `preprocessing.py` — shared MODEL_FEATURES and build_feature_matrix (extracted when XGBoost is added)
-- `evaluator.py` — shared model comparison metrics
+### What was done in this phase
+
+**New modules created:**
+
+| Module | Responsibility |
+|--------|---------------|
+| `preprocessing.py` | `MODEL_FEATURES`, `build_feature_matrix`, `build_target` — shared by all three ML detectors |
+| `evaluation.py` | `evaluate_binary_classifier(y_true, y_pred, y_score)` — shared by supervised classifiers |
+| `xgboost_classifier.py` | XGBoost: train, predict, evaluate, CLI |
+
+**Existing modules refactored:**
+
+- `isolation_forest_detector.py` — imports `MODEL_FEATURES`, `build_feature_matrix` from `preprocessing.py` (re-exports for backward compatibility)
+- `decision_tree_classifier.py` — imports from `preprocessing.py` and `evaluation.py`; keeps `evaluate_test` as backward-compatible alias
+
+### XGBoost classifier
+
+```bash
+python src/ml/xgboost_classifier.py \
+    --input  data/cloud_cost_features.csv \
+    --output data/cloud_cost_xgboost_predictions.csv \
+    --test-size 0.2 --n-estimators 100 --max-depth 3 --learning-rate 0.1 --seed 42
+```
+
+### Class imbalance handling
+
+`scale_pos_weight = n_negatives / n_positives` (computed from training split) adjusts the loss function for the ~5% anomaly rate.
+
+### Output columns added
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `xgb_anomaly` | bool | True when `xgb_score >= 0.5` |
+| `xgb_score` | float [0–1] | `predict_proba` probability of anomaly class |
+| `xgb_risk_level` | string | `low` / `medium` / `high` (same thresholds as other models) |
+
+### Evaluation note
+
+XGBoost has access to labeled data during training — metrics are a **benchmark on a controlled synthetic dataset**, not a proxy for production performance.
+
+### Acceptance criteria (Phase 1.6)
+
+- [x] `preprocessing.py` created — `MODEL_FEATURES`, `build_feature_matrix`, `build_target` shared
+- [x] `evaluation.py` created — `evaluate_binary_classifier` shared
+- [x] All existing tests continue passing after refactor (234/234)
+- [x] `xgb_score` in [0.0, 1.0], `xgb_anomaly` bool, `xgb_risk_level` valid
+- [x] `is_anomaly` never used as feature
+- [x] No model saved to disk
+- [x] Reproducible with same `--seed`
+
+### Running tests
+
+```bash
+pytest tests/ml/test_preprocessing.py tests/ml/test_evaluation.py tests/ml/test_xgboost_classifier.py -v
+```
+
+---
+
+## Upcoming (Phase 1.7+)
+
+- `evaluator.py` — side-by-side model comparison (baseline vs IForest vs DT vs XGBoost)
 - `predictor.py` — unified predict() interface
 - `model_registry.py` — model save/load with metadata.json
 - `predictor.py` — unified `predict()` interface
