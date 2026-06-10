@@ -78,9 +78,79 @@ pytest tests/ml/test_generate_dataset.py -v
 
 ---
 
-## Upcoming (Phase 1.2+)
+## Phase 1.2 — Feature Engineering
 
-- `feature_engineering.py` — feature transformations for ML models
+### What it does
+
+`feature_engineering.py` reads the raw billing CSV and produces an enriched dataset with 10 new features ready for statistical baseline and ML training.
+
+### Running
+
+```bash
+python src/ml/feature_engineering.py \
+    --input data/cloud_costs.csv \
+    --output data/cloud_cost_features.csv
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--input` | `data/cloud_costs.csv` | Raw billing CSV (output of Phase 1.1) |
+| `--output` | `data/cloud_cost_features.csv` | Enriched output CSV |
+
+### New feature columns
+
+| Feature | Description | Fallback |
+|---------|-------------|---------|
+| `previous_day_cost` | Cost of this resource on the previous day | `NaN` (first day) |
+| `previous_day_usage` | Usage of this resource on the previous day | `NaN` (first day) |
+| `avg_cost_7d` | 7-day rolling mean cost per resource | Uses available days (`min_periods=1`) |
+| `avg_cost_30d` | 30-day rolling mean cost per resource | Uses available days (`min_periods=1`) |
+| `cost_change_percent` | `(cost - prev_cost) / prev_cost * 100` | `NaN` when no previous record |
+| `usage_change_percent` | `(usage - prev_usage) / prev_usage * 100` | `NaN` when no previous record |
+| `cost_to_usage_ratio` | `daily_cost / usage_quantity` | `NaN` when usage is zero |
+| `is_missing_tag` | `True` if `tag_project` or `tag_owner` is empty | — |
+| `day_of_week` | Integer 0 (Mon) – 6 (Sun) | — |
+| `is_weekend` | `True` if `day_of_week >= 5` | — |
+
+### Rolling feature grouping — architecture note
+
+Rolling features (`previous_day_cost`, `previous_day_usage`, `avg_cost_7d`, `avg_cost_30d`, `cost_change_percent`, `usage_change_percent`) are grouped by **`resource_id`** in Phase 1.2.
+
+**Why `resource_id` only (Phase 1.2):**
+In the synthetic dataset, `account_id` and `region` are assigned randomly per day and are not stable across days for the same resource. Grouping by them would produce groups of 1–3 records, making rolling averages meaningless.
+
+**Recommended group in real billing data (Phase 6):**
+When real collectors (AWS, OCI) are used, `account_id` and `region` will be stable for a given resource. The group should become:
+```
+provider + account_id + region + resource_id
+```
+This change is isolated to `add_rolling_features()` — no other function needs to change.
+
+### Acceptance criteria (Phase 1.2)
+
+- [x] `data/cloud_cost_features.csv` is generated from `data/cloud_costs.csv`
+- [x] Output has the same number of rows as the input (no records dropped)
+- [x] All 10 new feature columns are present
+- [x] Rolling features are calculated per `resource_id` (groups never cross resource boundaries)
+- [x] First record of each resource has `NaN` for `previous_day_cost` and `previous_day_usage`
+- [x] `is_missing_tag` is `True` when `tag_project` or `tag_owner` is empty string
+- [x] `cost_to_usage_ratio` is `NaN` when `usage_quantity == 0` (no division by zero)
+- [x] `is_anomaly` and `anomaly_type` columns are preserved unchanged
+- [x] Empty tag strings are loaded from CSV correctly (`keep_default_na=False`)
+- [x] All tests in `tests/ml/test_feature_engineering.py` pass
+
+### Running tests
+
+```bash
+pytest tests/ml/test_feature_engineering.py -v
+# or all ML tests:
+pytest tests/ -v
+```
+
+---
+
+## Upcoming (Phase 1.3+)
+
 - `baseline.py` — statistical z-score/IQR anomaly detection
 - `isolation_forest.py` — unsupervised anomaly detection
 - `decision_tree.py` — explainable supervised classifier

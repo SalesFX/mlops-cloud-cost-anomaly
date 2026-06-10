@@ -137,6 +137,28 @@ Synthetic billing records follow this schema (implemented in `src/ml/generate_da
 
 See `ADR-002-synthetic-dataset.md` for the full schema rationale and anomaly injection strategy.
 
+### Engineered features (Phase 1.2)
+
+The feature engineering pipeline (`src/ml/feature_engineering.py`) adds 10 derived columns:
+
+| Feature | Source columns | Notes |
+|---------|---------------|-------|
+| `previous_day_cost` | `daily_cost` | Per-resource rolling shift(1) |
+| `previous_day_usage` | `usage_quantity` | Per-resource rolling shift(1) |
+| `avg_cost_7d` | `daily_cost` | 7-day rolling mean, min_periods=1 |
+| `avg_cost_30d` | `daily_cost` | 30-day rolling mean, min_periods=1 |
+| `cost_change_percent` | `daily_cost`, `previous_day_cost` | NaN when no previous record |
+| `usage_change_percent` | `usage_quantity`, `previous_day_usage` | NaN when no previous record |
+| `cost_to_usage_ratio` | `daily_cost`, `usage_quantity` | NaN when usage = 0 |
+| `is_missing_tag` | `tag_project`, `tag_owner` | True when either is empty |
+| `day_of_week` | `date` | 0 = Monday, 6 = Sunday |
+| `is_weekend` | `day_of_week` | True when day_of_week >= 5 |
+
+**Rolling feature grouping — architecture note:**
+
+- **Phase 1.2 (synthetic data):** group by `resource_id`. In the synthetic dataset, `account_id` and `region` are randomly assigned per day and not stable across days for the same resource. Grouping by them would produce groups of 1–3 records with meaningless rolling averages.
+- **Phase 6 (real billing data):** recommended group is `provider + account_id + region + resource_id`. All four fields are stable per resource in real billing systems. This change is isolated to `add_rolling_features()`.
+
 ---
 
 ## 7. Model Strategy
