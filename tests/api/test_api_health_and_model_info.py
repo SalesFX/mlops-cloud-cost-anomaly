@@ -144,12 +144,14 @@ class TestModelInfo:
         monkeypatch.setattr(settings, "feature_schema_path", str(tmp_path / "missing.json"))
         assert client.get("/model/info").status_code == 503
 
-    def test_error_has_detail_not_traceback(self, tmp_path, monkeypatch):
+    def test_error_has_standardized_format(self, tmp_path, monkeypatch):
         monkeypatch.setattr(settings, "model_metadata_path", str(tmp_path / "missing.json"))
         monkeypatch.setattr(settings, "feature_schema_path", str(tmp_path / "missing.json"))
         body = client.get("/model/info").json()
-        assert "detail" in body
-        assert "Traceback" not in str(body.get("detail", ""))
+        assert "error" in body
+        assert "message" in body
+        assert "details" in body
+        assert "Traceback" not in str(body)
 
     def test_model_info_independent_of_joblib_file(self, mock_metadata, mock_schema,
                                                     tmp_path, monkeypatch):

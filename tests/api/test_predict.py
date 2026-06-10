@@ -309,14 +309,16 @@ class TestPredictErrors:
         monkeypatch.setattr(settings, "feature_schema_path", str(tmp_path / "missing.json"))
         assert client.post("/predict", json=VALID_PAYLOAD).status_code == 503
 
-    def test_error_detail_not_traceback(self, mock_paths, monkeypatch):
+    def test_error_has_standardized_format(self, mock_paths, monkeypatch):
         meta_path, schema_path = mock_paths
         monkeypatch.setattr(settings, "model_metadata_path", meta_path)
         monkeypatch.setattr(settings, "feature_schema_path", schema_path)
         monkeypatch.setattr(api_main, "load_model", lambda path: None)
         body = client.post("/predict", json=VALID_PAYLOAD).json()
-        assert "detail" in body
-        assert "Traceback" not in str(body.get("detail", ""))
+        assert "error" in body
+        assert "message" in body
+        assert "details" in body
+        assert "Traceback" not in str(body)
 
 
 # ---------------------------------------------------------------------------
