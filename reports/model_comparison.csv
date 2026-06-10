@@ -1,0 +1,5 @@
+model_name,model_type,evaluation_scope,anomaly_count,anomaly_rate,true_positives,false_positives,false_negatives,true_negatives,accuracy,precision,recall,f1_score,roc_auc,notes
+Statistical Baseline,rule_based,full_dataset_outputs,573,0.0531,515,58,25,10202,0.9923,0.8988,0.9537,0.9254,0.9749,Rule-based detector using cost/usage thresholds and tag governance flags. Evaluated on full dataset. Thresholds designed for this synthetic schema.
+Isolation Forest,unsupervised_ml,full_dataset_outputs,540,0.05,267,273,273,9987,0.9494,0.4944,0.4944,0.4944,0.9394,Unsupervised ML — no labels used in training. Evaluated on full dataset including its own training data.
+Decision Tree,supervised_ml,full_dataset_outputs,623,0.0577,519,104,21,10156,0.9884,0.8331,0.9611,0.8925,0.9811,"Supervised ML, explainable. Original test-split metrics computed in Phase 1.5 (80/20 split). This report evaluates full dataset outputs."
+XGBoost,supervised_ml,full_dataset_outputs,566,0.0524,535,31,5,10229,0.9967,0.9452,0.9907,0.9675,0.9997,"Supervised ML, high-performance. Original test-split metrics computed in Phase 1.6 (80/20 split). This report evaluates full dataset outputs."
