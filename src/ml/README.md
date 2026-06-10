@@ -424,9 +424,55 @@ pytest tests/ml/test_preprocessing.py tests/ml/test_evaluation.py tests/ml/test_
 
 ---
 
-## Upcoming (Phase 1.7+)
+## Phase 1.7 — Model Comparison
 
-- `evaluator.py` — side-by-side model comparison (baseline vs IForest vs DT vs XGBoost)
+### What it does
+
+`compare_models.py` reads the four prediction CSVs, computes metrics for each model
+against the `is_anomaly` ground truth, and produces `reports/model_comparison.csv`
+and `reports/model_comparison.md`.
+
+### Running
+
+```bash
+python src/ml/compare_models.py \
+    --baseline       data/cloud_cost_baseline_predictions.csv \
+    --iforest        data/cloud_cost_iforest_predictions.csv \
+    --decision-tree  data/cloud_cost_decision_tree_predictions.csv \
+    --xgboost        data/cloud_cost_xgboost_predictions.csv \
+    --output-csv     reports/model_comparison.csv \
+    --output-md      reports/model_comparison.md
+```
+
+### Results (full_dataset_outputs, synthetic benchmark)
+
+| Model | Type | Precision | Recall | F1 | ROC-AUC |
+|-------|------|-----------|--------|-----|---------|
+| Statistical Baseline | rule_based | 0.8988 | 0.9537 | 0.9254 | 0.9749 |
+| Isolation Forest | unsupervised_ml | 0.4944 | 0.4944 | 0.4944 | 0.9394 |
+| Decision Tree | supervised_ml | 0.8331 | 0.9611 | 0.8925 | 0.9811 |
+| **XGBoost** | supervised_ml | **0.9452** | **0.9907** | **0.9675** | **0.9997** |
+
+**Best F1:** XGBoost (0.9675) | **Best Recall:** XGBoost (0.9907)
+
+### evaluation_scope note
+
+`evaluation_scope = full_dataset_outputs` for all models. Decision Tree and XGBoost
+were originally evaluated on held-out test splits in Phases 1.5/1.6 — those are the
+correct unbiased references. This report is an operational consolidated view.
+
+### Acceptance criteria (Phase 1.7)
+
+- [x] `reports/model_comparison.csv` generated with 4 rows
+- [x] `reports/model_comparison.md` generated with table, interpretation, honesty note
+- [x] `evaluation_scope = full_dataset_outputs` in every row
+- [x] No new model trained, no existing model modified
+- [x] All 260 tests pass
+
+---
+
+## Upcoming (Phase 1.8+)
+
 - `predictor.py` — unified predict() interface
 - `model_registry.py` — model save/load with metadata.json
 - `predictor.py` — unified `predict()` interface
