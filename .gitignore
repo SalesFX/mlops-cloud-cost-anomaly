@@ -13,10 +13,14 @@ build/
 venv/
 env/
 
-# Data and models (never commit real data or trained artifacts)
-data/
+# Data — ignore generated CSV datasets, allow fixtures directory
+data/*.csv
+data/**/*.csv
+
+# Model artifacts — never commit trained models or serialised pipelines
 models/
-!data/fixtures/
+*.pkl
+*.joblib
 
 # Environment and secrets
 .env

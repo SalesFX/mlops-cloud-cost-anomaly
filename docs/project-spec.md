@@ -109,17 +109,33 @@ This platform provides automated anomaly detection over cloud billing data, comb
 
 ## 6. Data Model (Phase 1)
 
-Synthetic billing records follow this schema:
+Synthetic billing records follow this schema (implemented in `src/ml/generate_dataset.py`):
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `date` | date | Billing date |
-| `service` | string | Cloud service name (EC2, S3, RDS, etc.) |
-| `resource_id` | string | Synthetic resource identifier |
+| Column | Type | Description |
+|--------|------|-------------|
+| `date` | string (ISO 8601) | Billing date |
+| `provider` | string | Cloud provider: `AWS` or `OCI` |
+| `account_id` | string | Synthetic account/tenancy ID |
+| `service` | string | Cloud service name (EC2, S3, RDS, Compute, etc.) |
 | `region` | string | Cloud region |
-| `usage_type` | string | Usage category |
-| `cost_usd` | float | Daily cost in USD |
+| `environment` | string | Workload environment: `dev`, `staging`, `prod` |
+| `resource_id` | string | Stable synthetic resource identifier |
+| `tag_project` | string | Cost allocation tag — project name |
+| `tag_owner` | string | Cost allocation tag — owner name |
+| `daily_cost` | float | Daily cost in USD |
+| `usage_quantity` | float | Daily usage quantity |
+| `currency` | string | Always `USD` |
 | `is_anomaly` | bool | Ground truth label (for supervised models) |
+| `anomaly_type` | string | `none`, `cost_spike`, `usage_spike`, `missing_tag`, `unexpected_service_growth` |
+
+**Providers and services:**
+
+| Provider | Services |
+|----------|---------|
+| AWS | EC2, RDS, S3, Lambda, EKS |
+| OCI | Compute, Autonomous Database, Object Storage, OKE, Load Balancer |
+
+See `ADR-002-synthetic-dataset.md` for the full schema rationale and anomaly injection strategy.
 
 ---
 
