@@ -1,0 +1,44 @@
+# Version control
+.git
+.github
+
+# Python virtual environments
+.venv
+venv
+env
+
+# Python bytecode and cache
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Environment files (never include secrets in image)
+.env
+.env.*
+
+# ML model artefacts — volume-mounted at runtime, never baked into image
+# Mount at runtime: -v "$(pwd)/models:/app/models:ro"
+models/
+
+# Data, reports and generated outputs
+data/
+reports/
+
+# Tests (not needed at runtime)
+tests/
+
+# Development-only directories
+notebooks/
+.claude/
+docs/
+
+# Editors
+.idea/
+.vscode/
